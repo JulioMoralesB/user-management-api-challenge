@@ -9,6 +9,8 @@ on:
 permissions:
   contents: read
   checks: write
+  pages: write
+  id-token: write
 
 jobs:
   test-dev:
@@ -166,3 +168,51 @@ jobs:
           name: Prod Test Report
           path: test-results-prod.xml
           reporter: java-junit
+
+  deploy-reports:
+    runs-on: ubuntu-latest
+    needs: [test-dev, test-prod]
+    if: always()
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download dev report
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-dev
+          path: reports/
+
+      - name: Download prod report
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-prod
+          path: reports/
+
+      - name: Create index page
+        run: |
+          cat > reports/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>Test Reports</title></head>
+          <body>
+            <h1>Test Reports</h1>
+            <ul>
+              <li><a href="report-dev.html">Dev Environment Report</a></li>
+              <li><a href="report-prod.html">Prod Environment Report</a></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reports/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
