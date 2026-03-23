@@ -64,7 +64,9 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "$FAILURES" != "0" ] || [ "$ERRORS" != "0" ]; then
               echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
-              grep -o 'name="[^"]*"' test-results-dev.xml | grep -i "fail\|error" >> $GITHUB_STEP_SUMMARY || true
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -B1 '<failure' test-results-dev.xml | grep 'testcase' | sed 's/.*name="\([^"]*\)".*/\1/' >> $GITHUB_STEP_SUMMARY || true
+              echo '```' >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "No test results found." >> $GITHUB_STEP_SUMMARY
@@ -137,6 +139,13 @@ jobs:
             echo "| Total Tests | $TESTS |" >> $GITHUB_STEP_SUMMARY
             echo "| Failures | $FAILURES |" >> $GITHUB_STEP_SUMMARY
             echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "$FAILURES" != "0" ] || [ "$ERRORS" != "0" ]; then
+              echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -B1 '<failure' test-results-prod.xml | grep 'testcase' | sed 's/.*name="\([^"]*\)".*/\1/' >> $GITHUB_STEP_SUMMARY || true
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "No test results found." >> $GITHUB_STEP_SUMMARY
           fi
