@@ -39,9 +39,32 @@ jobs:
       
       - name: Run tests for dev environment
         run: |
-          pytest tests/ -v --tb=short -m "not slow" -k "dev" --junitxml=test-results-dev.xml --html=report-dev.html --self-contained-html || true
+          pytest tests/ -v --tb=short -k "dev" --junitxml=test-results-dev.xml --html=report-dev.html --self-contained-html
         env:
           API_BASE_URL: http://localhost:3000
+      
+      - name: Generate dev test summary
+        if: always()
+        run: |
+          echo "## Dev Environment Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results-dev.xml ]; then
+            TESTS=$(grep -o 'tests="[0-9]*"' test-results-dev.xml | head -1 | grep -o '[0-9]*')
+            FAILURES=$(grep -o 'failures="[0-9]*"' test-results-dev.xml | head -1 | grep -o '[0-9]*')
+            ERRORS=$(grep -o 'errors="[0-9]*"' test-results-dev.xml | head -1 | grep -o '[0-9]*')
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Tests | $TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Failures | $FAILURES |" >> $GITHUB_STEP_SUMMARY
+            echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "$FAILURES" != "0" ] || [ "$ERRORS" != "0" ]; then
+              echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
+              grep -o 'name="[^"]*"' test-results-dev.xml | grep -i "fail\|error" >> $GITHUB_STEP_SUMMARY || true
+            fi
+          else
+            echo "No test results found." >> $GITHUB_STEP_SUMMARY
+          fi
       
       - name: Upload test results (dev)
         if: always()
@@ -51,6 +74,14 @@ jobs:
           path: |
             test-results-dev.xml
             report-dev.html
+
+      - name: Publish dev test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Dev Test Report
+          path: test-results-dev.xml
+          reporter: java-junit
 
   test-prod:
     runs-on: ubuntu-latest
@@ -84,9 +115,27 @@ jobs:
       
       - name: Run tests for prod environment
         run: |
-          pytest tests/ -v --tb=short -m "not slow" -k "prod" --junitxml=test-results-prod.xml --html=report-prod.html --self-contained-html || true
+          pytest tests/ -v --tb=short -k "prod" --junitxml=test-results-prod.xml --html=report-prod.html --self-contained-html
         env:
           API_BASE_URL: http://localhost:3000
+      
+      - name: Generate prod test summary
+        if: always()
+        run: |
+          echo "## Prod Environment Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results-prod.xml ]; then
+            TESTS=$(grep -o 'tests="[0-9]*"' test-results-prod.xml | head -1 | grep -o '[0-9]*')
+            FAILURES=$(grep -o 'failures="[0-9]*"' test-results-prod.xml | head -1 | grep -o '[0-9]*')
+            ERRORS=$(grep -o 'errors="[0-9]*"' test-results-prod.xml | head -1 | grep -o '[0-9]*')
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Tests | $TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Failures | $FAILURES |" >> $GITHUB_STEP_SUMMARY
+            echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test results found." >> $GITHUB_STEP_SUMMARY
+          fi
       
       - name: Upload test results (prod)
         if: always()
@@ -97,18 +146,10 @@ jobs:
             test-results-prod.xml
             report-prod.html
 
-  publish-results:
-    runs-on: ubuntu-latest
-    needs: [test-dev, test-prod]
-    if: always()
-    steps:
-      - uses: actions/download-artifact@v4
+      - name: Publish prod test report
+        if: always()
+        uses: dorny/test-reporter@v1
         with:
-          path: artifacts
-      
-      - name: Publish test results summary
-        run: |
-          echo "## Test Results Summary"
-          echo ""
-          echo "All test artifacts have been uploaded."
-          echo "Check the 'Artifacts' section in the workflow run for detailed results."
+          name: Prod Test Report
+          path: test-results-prod.xml
+          reporter: java-junit
